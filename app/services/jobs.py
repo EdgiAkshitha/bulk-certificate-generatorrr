@@ -43,7 +43,6 @@ def create_job(db: Session, payload: JobCreate, idempotency_key: str | None = No
         course_name=payload.course_name,
         issuer_name=payload.issuer_name,
         issue_date=payload.issue_date,
-        template=payload.template,
         total_count=len(payload.recipients),
         idempotency_key=idempotency_key,
     )
@@ -150,7 +149,6 @@ def _generate_one(db: Session, job: Job, cert: Certificate) -> None:
                 course_name=job.course_name,
                 issuer_name=job.issuer_name,
                 issue_date=job.issue_date,
-                template=job.template or "classic",
                 verify_url=f"{settings.public_base_url}/api/v1/verify/{cert.id}",
             ),
             dest,

@@ -13,7 +13,6 @@ from app.models import Certificate, CertificateStatus, Job, JobStatus
 from app.security import require_api_key
 from app.schemas import CertificateList, CertificateOut, JobCreate, JobOut
 from app.services import jobs as svc
-from app.services import pdf
 
 router = APIRouter(prefix="/api/v1", tags=["certificates"], dependencies=[Depends(require_api_key)])
 public_router = APIRouter(prefix="/api/v1", tags=["verification"])
@@ -39,7 +38,6 @@ def _job_out(request: Request, db: Session, job: Job) -> JobOut:
         course_name=job.course_name,
         issuer_name=job.issuer_name,
         issue_date=job.issue_date,
-        template=job.template,
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
@@ -189,41 +187,3 @@ def verify_certificate(certificate_id: str, db: Session = Depends(get_db)):
         "generated_at": cert.generated_at,
     }
 
-
-@public_router.get("/templates")
-def list_templates():
-    """Available certificate templates (use the `id` as `template` when creating a job)."""
-    return [
-        {
-            "id": t.id,
-            "label": t.label,
-            "description": t.description,
-            "preview_url": f"/api/v1/templates/{t.id}/preview",
-        }
-        for t in pdf.TEMPLATES.values()
-    ]
-
-
-@public_router.get("/templates/{template_id}/preview")
-def preview_template(template_id: str):
-    """Sample PDF of a template, so you can look before choosing."""
-    if template_id not in pdf.TEMPLATES:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
-    from datetime import date
-
-    with tempfile.TemporaryDirectory() as tmp:
-        dest = pdf.render_certificate(
-            pdf.CertificateData(
-                certificate_id="preview-0000-0000",
-                recipient_name="Asha Rao",
-                course_name="Python for Backend Engineers",
-                issuer_name="AEREO Academy",
-                issue_date=date.today(),
-                verify_url="https://example.com/verify/preview",
-                template=template_id,
-            ),
-            Path(tmp) / "preview.pdf",
-        )
-        data = dest.read_bytes()
-    return Response(data, media_type="application/pdf",
-                    headers={"Content-Disposition": f'inline; filename="preview-{template_id}.pdf"'})

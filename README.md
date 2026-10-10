@@ -23,7 +23,7 @@ No other setup is needed: tables and the storage folder are created on startup
 uvicorn app.main:app --reload
 ```
 
-Web UI: <http://127.0.0.1:8000/> (paste recipients or load a CSV, watch live progress, download PDFs / ZIP, retry failures)
+Web UI: <http://127.0.0.1:8000/> (paste recipients or load a CSV, watch live animated progress, download PDFs / ZIP, retry failures)
 
 Interactive API docs: <http://127.0.0.1:8000/docs>
 
@@ -111,6 +111,19 @@ curl -OJ http://127.0.0.1:8000/api/v1/certificates/<certificate_id>/download
 curl -OJ http://127.0.0.1:8000/api/v1/jobs/<job_id>/download
 ```
 
+## Requirements coverage
+
+| Requirement | Where | Tests |
+|---|---|---|
+| Accept bulk request (many recipients, one call) | `POST /api/v1/jobs` | `test_create_job.py` |
+| Validate recipient data | `schemas.py` (request + per-recipient) | `test_validation.py` |
+| Generate certificate per valid recipient | `services/pdf.py`, `services/jobs.py` | `test_generation.py` |
+| Track status / progress | `GET /jobs/{id}` (`GROUP BY status`) | `test_status.py` |
+| One failure must not block others | per-certificate `try/except` | `test_failure_handling.py` |
+| Retrieve certificates | single PDF + ZIP endpoints | `test_retrieval.py` |
+| Relational DB | SQLAlchemy: SQLite (default) / PostgreSQL | all tests |
+| Processing choice documented | *Design decisions* below | - |
+
 ## Deploy (Render, free)
 
 1. Push the repo to GitHub.
@@ -175,8 +188,8 @@ table, so they can never drift from the real state (no separate counters to keep
 IDs are UUIDs, so certificate URLs aren't guessable by incrementing a number.
 
 **Template.** A single landscape-A4 template drawn with ReportLab (no external assets, no
-templating engine, deterministic output). Contains recipient name, course, issue date, issuer and
-the certificate ID.
+templating engine, deterministic output). Contains the recipient name, course, issue date, issuer,
+certificate ID and a verification QR code. Very long names/courses shrink to fit the page.
 
 **Schema.** `jobs` (1) → `certificates` (N); unique `(job_id, position)`; indexes on `job_id` and
 `status`. Tables are created with `create_all` - I'd add Alembic migrations before real deployments.

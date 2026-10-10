@@ -103,9 +103,6 @@
   input, textarea, select { transition:border-color .25s, box-shadow .25s, transform .25s var(--ease) }
   input:focus, textarea:focus, select:focus { outline:none; border-color:var(--g1); box-shadow:0 0 0 4px rgba(99,102,241,.18); transform:translateY(-1px) }
   label { transition:color .25s } 
-  #preview { white-space:nowrap; font-size:13px; font-weight:600; color:var(--g1); text-decoration:none; padding:8px 12px;
-    border-radius:8px; background:rgba(99,102,241,.1); transition:all .25s var(--ease) }
-  #preview:hover { background:var(--g1); color:#fff; transform:translateY(-2px) }
 
   button { position:relative; overflow:hidden; transition:transform .2s var(--ease), box-shadow .25s, filter .2s }
   button:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 18px -8px rgba(0,0,0,.35) }
@@ -168,12 +165,6 @@
     <input id="issuer" value="AEREO Academy" maxlength="200">
     <label for="date">Issue date</label>
     <input id="date" type="date">
-    <label for="template">Certificate template</label>
-    <div class="row">
-      <select id="template" style="flex:1; width:auto"><option value="classic">Classic Blue</option></select>
-      <a id="preview" href="/api/v1/templates/classic/preview" target="_blank" rel="noopener">Preview</a>
-    </div>
-    <div class="hint" id="tdesc"></div>
     <label for="rec">Recipients <span id="count" class="meta"></span></label>
     <textarea id="rec" spellcheck="false" placeholder="One per line:  Name, email&#10;Asha Rao, asha@example.com&#10;Ben Carter"></textarea>
     <div class="row" style="margin-top:6px">
@@ -203,24 +194,6 @@ try { $("key").value = sessionStorage.getItem("apikey") || ""; } catch(e) {}
 
 const headers = (extra={}) => { const k=$("key").value.trim(); return k ? {...extra,"X-API-Key":k} : extra; };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
-async function loadTemplates() {
-  try {
-    const list = await (await fetch(API + "/templates")).json();
-    const sel = $("template"); sel.innerHTML = "";
-    list.forEach(t => { const o = document.createElement("option"); o.value = t.id; o.textContent = t.label; o.dataset.desc = t.description; sel.appendChild(o); });
-    try { const saved = localStorage.getItem("template"); if (saved && list.some(t => t.id === saved)) sel.value = saved; } catch(e) {}
-    syncTemplate();
-  } catch (e) { /* keep the default option */ }
-}
-function syncTemplate() {
-  const sel = $("template"), o = sel.options[sel.selectedIndex];
-  $("preview").href = API + "/templates/" + sel.value + "/preview";
-  $("tdesc").textContent = (o && o.dataset.desc) || "";
-  try { localStorage.setItem("template", sel.value); } catch(e) {}
-}
-$("template").addEventListener("change", syncTemplate);
-loadTemplates();
 
 function parseRecipients(text) {
   return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
@@ -267,7 +240,7 @@ $("go").onclick = async () => {
     const r = await api("/jobs", { method:"POST",
       headers: { "Content-Type":"application/json", "Idempotency-Key": crypto.randomUUID() },
       body: JSON.stringify({ course_name:$("course").value, issuer_name:$("issuer").value,
-        issue_date:$("date").value || undefined, template:$("template").value, recipients }) });
+        issue_date:$("date").value || undefined, recipients }) });
     const job = await r.json();
     follow(job.id);
   } catch (e) {

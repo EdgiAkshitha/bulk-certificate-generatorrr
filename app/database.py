@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
@@ -28,12 +28,3 @@ def get_db():
     finally:
         db.close()
 
-
-def ensure_schema() -> None:
-    """Add columns introduced after a database was first created (no Alembic here)."""
-    insp = inspect(engine)
-    if "jobs" in insp.get_table_names():
-        cols = {c["name"] for c in insp.get_columns("jobs")}
-        if "template" not in cols:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE jobs ADD COLUMN template VARCHAR(32) NOT NULL DEFAULT 'classic'"))
