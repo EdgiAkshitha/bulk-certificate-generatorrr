@@ -37,6 +37,7 @@ class Job(Base):
     course_name: Mapped[str] = mapped_column(String(200))
     issuer_name: Mapped[str] = mapped_column(String(200))
     issue_date: Mapped[date] = mapped_column(Date)
+    template: Mapped[str] = mapped_column(String(32), default="classic", server_default="classic")
     status: Mapped[str] = mapped_column(String(32), default=JobStatus.QUEUED.value, index=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True)
     total_count: Mapped[int] = mapped_column(Integer, default=0)

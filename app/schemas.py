@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config import settings
+from app.services.pdf import DEFAULT_TEMPLATE, TEMPLATES
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
@@ -47,6 +48,7 @@ class JobCreate(BaseModel):
     course_name: str = Field(min_length=1, max_length=200)
     issuer_name: str = Field(min_length=1, max_length=200)
     issue_date: date = Field(default_factory=date.today)
+    template: str = DEFAULT_TEMPLATE
     recipients: list[Any] = Field(min_length=1, max_length=settings.max_recipients_per_job)
 
     @field_validator("course_name", "issuer_name")
@@ -55,6 +57,15 @@ class JobCreate(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("must not be blank")
+        return v
+
+
+    @field_validator("template")
+    @classmethod
+    def _known_template(cls, v: str) -> str:
+        v = v.strip().lower()
+        if v not in TEMPLATES:
+            raise ValueError(f"unknown template; choose one of: {', '.join(TEMPLATES)}")
         return v
 
 
@@ -72,6 +83,7 @@ class JobOut(BaseModel):
     course_name: str
     issuer_name: str
     issue_date: date
+    template: str
     created_at: datetime
     started_at: datetime | None
     completed_at: datetime | None

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, Response
 
 from app.config import settings
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, engine, ensure_schema
 from app.routers import jobs
 from app.services import jobs as job_service
 
@@ -22,7 +22,8 @@ async def lifespan(app: FastAPI):
 
         Path(settings.database_url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
     settings.storage_dir.mkdir(parents=True, exist_ok=True)
-    Base.metadata.create_all(engine)  # no migrations for this small project
+    Base.metadata.create_all(engine)
+    ensure_schema()  # adds new columns to databases created by older versions
     # Resume anything a previous crash/restart interrupted (see recover_stale_jobs).
     with SessionLocal() as db:
         stale = job_service.recover_stale_jobs(db)
