@@ -1,0 +1,26 @@
+# Optional: run the API against PostgreSQL instead of SQLite.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: certs
+      POSTGRES_PASSWORD: certs
+      POSTGRES_DB: certs
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U certs"]
+      interval: 3s
+      retries: 10
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://certs:certs@db:5432/certs
+      STORAGE_DIR: /data/certificates
+    volumes:
+      - certs_data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  certs_data:

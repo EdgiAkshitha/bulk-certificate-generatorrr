@@ -1,0 +1,18 @@
+# One-click deploy on Render (free tier): New + > Blueprint > pick this repo.
+services:
+  - type: web
+    name: bulk-certificate-generator
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.5
+      - key: MAX_RECIPIENTS_PER_JOB
+        value: "200"
+      # After the first deploy, set this to your real URL (e.g. https://xyz.onrender.com)
+      # so the QR codes on certificates point to the live verify endpoint.
+      - key: PUBLIC_BASE_URL
+        value: https://bulk-certificate-generator.onrender.com

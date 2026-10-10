@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificate Generator</title>
+<style>
+  :root {
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2430; --muted:#6b7686; --line:#e2e7ef;
+    --brand:#1f3a5f; --brand-ink:#fff; --ok:#12805c; --okbg:#e3f6ee; --bad:#b42318; --badbg:#fdecea;
+    --pend:#946200; --pendbg:#fff4d6; --bar:#e8edf5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f141b; --card:#171e28; --ink:#e8edf4; --muted:#93a0b2; --line:#263040;
+      --brand:#6ea0ec; --brand-ink:#0b1220; --ok:#4cd3a0; --okbg:#0f2e25; --bad:#ff8a80; --badbg:#35171a;
+      --pend:#f0c055; --pendbg:#33290f; --bar:#222c3a; }
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  header { padding:20px 16px 4px; max-width:1180px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 2px }
+  header p { margin:0; color:var(--muted) }
+  main { max-width:1180px; margin:16px auto 48px; padding:0 16px; display:grid; gap:16px;
+    grid-template-columns: minmax(0,380px) minmax(0,1fr); align-items:start; }
+  @media (max-width:860px){ main{ grid-template-columns:1fr } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  h2 { font-size:15px; margin:0 0 12px }
+  label { display:block; font-size:13px; color:var(--muted); margin:12px 0 4px }
+  input, textarea { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--bg); color:var(--ink); font:inherit; }
+  textarea { min-height:170px; font:13px/1.45 ui-monospace,Consolas,monospace; resize:vertical }
+  input:focus, textarea:focus { outline:2px solid var(--brand); outline-offset:1px }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+  .hint { font-size:12px; color:var(--muted); margin-top:4px }
+  button { font:inherit; cursor:pointer; border-radius:8px; padding:9px 14px; border:1px solid var(--line);
+    background:var(--card); color:var(--ink); }
+  button.primary { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); font-weight:600 }
+  button:disabled { opacity:.5; cursor:not-allowed }
+  button:hover:not(:disabled) { filter:brightness(.96) }
+  .full { width:100%; margin-top:16px }
+  .empty { text-align:center; color:var(--muted); padding:48px 12px }
+  .bar { height:10px; background:var(--bar); border-radius:99px; overflow:hidden; margin:12px 0 }
+  .bar > div { height:100%; width:0; background:var(--brand); transition:width .3s }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px }
+  .chip { padding:3px 10px; border-radius:99px; font-size:13px; font-weight:600 }
+  .chip.ok { background:var(--okbg); color:var(--ok) } .chip.bad { background:var(--badbg); color:var(--bad) }
+  .chip.pend { background:var(--pendbg); color:var(--pend) }
+  .status { font-weight:600; text-transform:capitalize }
+  .meta { color:var(--muted); font-size:13px; overflow-wrap:anywhere }
+  td .meta { overflow-wrap:normal; word-break:normal }
+  .tabs { display:flex; gap:4px; margin:14px 0 8px }
+  .tabs button { padding:5px 12px; font-size:13px }
+  .tabs button.on { background:var(--brand); color:var(--brand-ink); border-color:var(--brand) }
+  .tablewrap { max-height:440px; overflow:auto; border:1px solid var(--line); border-radius:8px }
+  table { width:100%; border-collapse:collapse; font-size:14px }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top }
+  th { position:sticky; top:0; background:var(--card); font-size:12px; color:var(--muted); text-transform:uppercase }
+  tr:last-child td { border-bottom:0 }
+  .tag { font-size:12px; font-weight:600; padding:2px 8px; border-radius:99px }
+  .tag.generated { background:var(--okbg); color:var(--ok) } .tag.failed { background:var(--badbg); color:var(--bad) }
+  .tag.pending { background:var(--pendbg); color:var(--pend) }
+  .err { color:var(--bad); font-size:13px }
+  a.dl { color:var(--brand); cursor:pointer; text-decoration:underline }
+  .toast { color:var(--bad); font-size:13px; margin-top:10px; white-space:pre-wrap }
+  .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bulk Certificate Generator</h1>
+  <p>Paste a list of recipients, get a PDF certificate for each. Failures never block the rest.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>New batch</h2>
+    <label for="course">Course / event name</label>
+    <input id="course" value="Python for Backend Engineers" maxlength="200">
+    <label for="issuer">Issued by</label>
+    <input id="issuer" value="AEREO Academy" maxlength="200">
+    <label for="date">Issue date</label>
+    <input id="date" type="date">
+    <label for="rec">Recipients <span id="count" class="meta"></span></label>
+    <textarea id="rec" spellcheck="false" placeholder="One per line:  Name, email&#10;Asha Rao, asha@example.com&#10;Ben Carter"></textarea>
+    <div class="row" style="margin-top:6px">
+      <button type="button" id="csvbtn">Load CSV…</button>
+      <input id="csv" type="file" accept=".csv,text/csv" hidden>
+      <button type="button" id="sample">Fill sample</button>
+    </div>
+    <div class="hint">Email is optional. Invalid rows (blank name, bad email, duplicates) are reported individually.</div>
+    <label for="key">API key <span class="meta">(only if the server requires one)</span></label>
+    <input id="key" type="password" autocomplete="off">
+    <button class="primary full" id="go">Generate certificates</button>
+    <div id="formerr" class="toast"></div>
+  </section>
+
+  <section class="card" id="result">
+    <div class="empty">Your batch progress and results will appear here.</div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const API = "/api/v1";
+let jobId = null, timer = null, filter = "all", certs = [], lastJob = null;
+
+$("date").value = new Date().toISOString().slice(0,10);
+try { $("key").value = sessionStorage.getItem("apikey") || ""; } catch(e) {}
+
+const headers = (extra={}) => { const k=$("key").value.trim(); return k ? {...extra,"X-API-Key":k} : extra; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function parseRecipients(text) {
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const [name, ...rest] = line.split(",");
+    const email = rest.join(",").trim();
+    const r = { name: name.trim() };
+    if (email) r.email = email;
+    return r;
+  });
+}
+function updateCount() { const n = parseRecipients($("rec").value).length; $("count").textContent = n ? `(${n})` : ""; }
+$("rec").addEventListener("input", updateCount);
+
+$("sample").onclick = () => {
+  $("rec").value = ["Asha Rao, asha@example.com","Ben Carter, ben@example.com","Chitra Menon","  , blank-name@example.com","Dev Patel, not-an-email","Asha Again, asha@example.com"].join("\n");
+  updateCount();
+};
+$("csvbtn").onclick = () => $("csv").click();
+$("csv").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  let lines = (await f.text()).split(/\r?\n/).filter(Boolean);
+  if (lines.length && /^\s*name\s*,/i.test(lines[0])) lines = lines.slice(1);   // drop header row
+  $("rec").value = lines.join("\n"); updateCount(); e.target.value = "";
+};
+
+async function api(path, opts={}) {
+  const r = await fetch(API + path, { ...opts, headers: headers(opts.headers || {}) });
+  if (!r.ok) {
+    let detail = r.statusText;
+    try { const j = await r.json(); detail = typeof j.detail === "string" ? j.detail
+      : j.detail.map(d => `${d.loc.slice(1).join(".")}: ${d.msg}`).join("\n"); } catch(e) {}
+    const err = new Error(detail); err.status = r.status; throw err;
+  }
+  return r;
+}
+
+$("go").onclick = async () => {
+  $("formerr").textContent = "";
+  const recipients = parseRecipients($("rec").value);
+  if (!recipients.length) { $("formerr").textContent = "Add at least one recipient."; return; }
+  try { sessionStorage.setItem("apikey", $("key").value); } catch(e) {}
+  $("go").disabled = true;
+  try {
+    const r = await api("/jobs", { method:"POST",
+      headers: { "Content-Type":"application/json", "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({ course_name:$("course").value, issuer_name:$("issuer").value,
+        issue_date:$("date").value || undefined, recipients }) });
+    const job = await r.json();
+    follow(job.id);
+  } catch (e) {
+    $("formerr").textContent = e.status === 401 ? "The server needs an API key (enter it above)." : e.message;
+  } finally { $("go").disabled = false; }
+};
+
+function follow(id) {
+  jobId = id; filter = "all"; location.hash = "job=" + id;
+  clearInterval(timer); poll(); timer = setInterval(poll, 800);
+}
+
+const FINISHED = ["completed","completed_with_errors","failed"];
+
+async function poll() {
+  try {
+    lastJob = await (await api("/jobs/" + jobId)).json();
+    certs = await fetchAllCerts();
+    render();
+    if (FINISHED.includes(lastJob.status)) clearInterval(timer);
+  } catch (e) {
+    clearInterval(timer);
+    $("result").innerHTML = `<div class="empty">${esc(e.status===404 ? "Job not found." : e.message)}</div>`;
+  }
+}
+
+async function fetchAllCerts() {
+  let all = [], offset = 0, total = 1;
+  while (offset < total) {
+    const page = await (await api(`/jobs/${jobId}/certificates?limit=500&offset=${offset}`)).json();
+    all = all.concat(page.items); total = page.total; offset += 500;
+  }
+  return all;
+}
+
+async function download(url, filename) {
+  try {
+    const blob = await (await api(url.replace(location.origin + API, ""))).blob();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { alert(e.message); }
+}
+const safe = s => (s||"certificate").replace(/[^\w\- ]+/g,"_").trim().replace(/\s+/g,"_");
+
+function render() {
+  const j = lastJob, p = j.progress, done = FINISHED.includes(j.status);
+  const rows = certs.filter(c => filter === "all" || c.status === filter);
+  $("result").innerHTML = `
+    <h2>${esc(j.course_name)} <span class="meta">· ${esc(j.issuer_name)}</span></h2>
+    <div><span class="status">${esc(j.status.replaceAll("_"," "))}</span>
+      <span class="meta"> · ${p.percent_complete}% · job ${esc(j.id)}</span></div>
+    <div class="bar"><div style="width:${p.percent_complete}%"></div></div>
+    <div class="chips">
+      <span class="chip ok">${p.generated} generated</span>
+      <span class="chip bad">${p.failed} failed</span>
+      <span class="chip pend">${p.pending} pending</span>
+      <span class="chip" style="background:var(--bar)">${p.total} total</span>
+    </div>
+    <div class="actions">
+      <button class="primary" id="zip" ${done && p.generated ? "" : "disabled"}>Download all (ZIP)</button>
+      <button id="retry" ${done && certs.some(c=>c.failure_type==="generation") ? "" : "disabled"}>Retry generation failures</button>
+    </div>
+    <div class="tabs">${["all","generated","failed","pending"].map(f =>
+      `<button data-f="${f}" class="${filter===f?"on":""}">${f[0].toUpperCase()+f.slice(1)}</button>`).join("")}</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Recipient</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody>${rows.map(c => `<tr>
+        <td>${c.position + 1}</td>
+        <td>${esc(c.recipient_name ?? "—")}<div class="meta">${esc(c.recipient_email ?? "")}</div></td>
+        <td><span class="tag ${c.status}">${c.status}</span></td>
+        <td>${c.status==="generated"
+              ? `<a class="dl" data-url="${esc(c.download_url)}" data-name="${esc(safe(c.recipient_name))}">Download PDF</a>`
+              : c.error ? `<span class="err">${esc(c.error)}</span>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="4" class="meta" style="text-align:center;padding:24px">Nothing here.</td></tr>`}</tbody>
+    </table></div>`;
+  $("zip")?.addEventListener("click", () => download(j.download_url, `certificates_${j.id}.zip`));
+  $("retry")?.addEventListener("click", async () => {
+    try { await api(`/jobs/${j.id}/retry`, { method:"POST" }); follow(j.id); } catch (e) { alert(e.message); }
+  });
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { filter = b.dataset.f; render(); });
+  document.querySelectorAll("a.dl").forEach(a => a.onclick = () => download(a.dataset.url, `certificate_${a.dataset.name}.pdf`));
+}
+
+const m = location.hash.match(/job=([\w-]+)/);
+if (m) follow(m[1]);
+updateCount();
+</script>
+</body>
+</html>
